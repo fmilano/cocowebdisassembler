@@ -4,19 +4,42 @@
 <head>
   <meta charset="UTF-8" />
   <title>Minimal JS front-end App Example</title>
-  <script src="src/model/Section.js"></script>
+  <script src="./src/model/section.js"></script>
 </head>
 <body>
   <h1>Color Computer web disassembler</h1>
   <h2>An Example of a Minimal JavaScript web front-end disassembler</h2>
   <p>This app supports the following operations:</p>
-  <menu>
+  <input type="file" id="files" name="files[]" single />
+  <output id="list"></output>
+
+  <script type="module">
+    import { decbParse } from './src/modules/decb_parser.mjs';
+    function handleFileSelect(evt) {
+      var file = evt.target.files[0]; // FileList object
+  
+      document.getElementById('list').innerHTML = '<ul><strong>', escape(file.name), '</strong></ul>';
+
+      var reader = new FileReader();
+
+      reader.onload = function () {
+        console.log(reader.result);
+        decbParse(reader.result);
+      }
+
+      reader.readAsArrayBuffer(file);
+    }
+  
+    document.getElementById('files').addEventListener('change', handleFileSelect, false);
+  </script>
+
+  <!--<menu>
     <li><a href="listSections.html"><button type="button">List all sections</button></a></li>
     <li><a href="createSection.html"><button type="button">Add a new section</button></a></li>
     <li><a href="updateSection.html"><button type="button">Update a section</button></a></li>
     <li><a href="deleteSection.html"><button type="button">Delete a section</button></a></li>
     <li><button type="button" onclick="Section.clearData()">Clear database</button></li>
     <li><button type="button" onclick="Section.createTestData()">Create test data</button></li>
-  </menu>
+  </menu>-->
 </body>
 </html>
