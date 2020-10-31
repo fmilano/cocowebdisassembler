@@ -5,6 +5,10 @@
   <meta charset="UTF-8" />
   <title>Minimal JS front-end App Example</title>
   <script src="./src/model/section.js"></script>
+
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
+  <script src="./src/view/hex0r.js" type="text/javascript"></script>
+  <link rel="stylesheet" type="text/css" href="./src/view/hex0r.css" />
 </head>
 <body>
   <h1>Color Computer web disassembler</h1>
@@ -13,8 +17,25 @@
   <input type="file" id="files" name="files[]" single />
   <output id="list"></output>
 
+  <div id="hexViewer" class="hex0rwindow" data-row-width="16" data-word-size="1" data-row-break="8"
+    data-trim="true" data-base64="true" data-caption="Hex0r Example - base 64 file, with highlighting"
+    data-highlights=""
+    data-show-line-nums="true" title="">
+    /9j/4AAQSkZJRgABAQEASABIAAD/4RzmRXhpZgAATU0AKgAAAAgADAEPAAIAAAAJ AAAAngEQAAIAAAAQAAAAqAESAAMAAAABAAEAAAEaAAUAAAABAAAAuAEbAAUAAAAB
+    AAAAwAEoAAMAAAABAAIAAAExAAIAAAAvAAAAyAEyAAIAAAAUAAAA+AITAAMAAAAB AAIAAIKYAAIAAAAFAAABDIdpAAQAAAABAAABEsSlAAcAAAAcAAAEkAAABKxGVUpJ
+    RklMTQAARmluZVBpeCBGNDU1ICAgAAAAAEgAAAABAAAASAAAAA==
+</div>
+
   <script type="module">
     import { decbParse } from './src/modules/decb_parser.mjs';
+
+    console.hex = (d) => console.log((Object(d).buffer instanceof ArrayBuffer ? new Uint8Array(d.buffer) : 
+      typeof d === 'string' ? (new TextEncoder('utf-8')).encode(d) : 
+      new Uint8ClampedArray(d)).reduce((p, c, i, a) => p + (i % 16 === 0 ? i.toString(16).padStart(6, 0) + '  ' : ' ') + 
+      c.toString(16).padStart(2, 0) + (i === a.length - 1 || i % 16 === 15 ? 
+      ' '.repeat((15 - i % 16) * 3) + Array.from(a).splice(i - i % 16, 16).reduce((r, v) => 
+      r + (v > 31 && v < 127 || v > 159 ? String.fromCharCode(v) : '.'), '  ') + '\n' : ''), ''));
+
     function handleFileSelect(evt) {
       var file = evt.target.files[0]; // FileList object
   
@@ -23,8 +44,11 @@
       var reader = new FileReader();
 
       reader.onload = function () {
-        console.log(reader.result);
-        decbParse(reader.result);
+        let retVal = decbParse(reader.result)
+        console.log(retVal.sections[0].data);
+        let base64String = btoa(String.fromCharCode(...new Uint8Array(retVal.sections[0].data)));
+        console.log(base64String);
+        document.getElementById('hexViewer').innerHTML = base64String;
       }
 
       reader.readAsArrayBuffer(file);
