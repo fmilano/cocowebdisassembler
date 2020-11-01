@@ -65,7 +65,7 @@ function markup_hex0rwindow(div) {
         $("table", div).append("<tr></tr>").addClass("hex0rwindow");
 
         if (showLineNums == true) {
-            $("table tr:last", div).append("<td>" + dec_to_hex8(offset) + " </td>");
+            $("table tr:last", div).append("<td>" + dec_to_hex4(offset) + " </td>");
             $("table tr td:last", div).addClass("hex0rwindow_offset");
         }
         var runlen = 0;
@@ -120,6 +120,16 @@ function dec2_to_hex(dec) {
         dec = 255;
 
     return HEX.charAt(Math.floor(dec / 16)) + HEX.charAt(dec % 16);
+}
+
+function dec_to_hex4(dec) {
+    var str = "";
+
+    for (var i = 1; i >= 0; i--) {
+        str += dec2_to_hex((dec >> (i * 8)) & 255);
+    }
+
+    return str;
 }
 
 function dec_to_hex8(dec) {
