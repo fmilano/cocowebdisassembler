@@ -12,28 +12,17 @@
 <body>
   <h1>Color Computer web disassembler</h1>
   <h2>An Example of a Minimal JavaScript web front-end disassembler</h2>
-  <p>This app supports the following operations:</p>
-  <input type="file" id="files" name="files[]" single />
+
+  <input type="file" id="files" name="files[]" accept=".bin" single />
   <output id="list"></output>
 
   <div id="hexViewer" class="hex0rwindow" data-row-width="16" data-word-size="1" data-row-break="8"
-    data-trim="true" data-base64="true" data-caption="Hex0r Example - base 64 file, with highlighting"
+    data-trim="true" data-base64="true" data-caption="Section hex dump"
     data-highlights=""
-    data-show-line-nums="true" title="">
-    /9j/4AAQSkZJRgABAQEASABIAAD/4RzmRXhpZgAATU0AKgAAAAgADAEPAAIAAAAJ AAAAngEQAAIAAAAQAAAAqAESAAMAAAABAAEAAAEaAAUAAAABAAAAuAEbAAUAAAAB
-    AAAAwAEoAAMAAAABAAIAAAExAAIAAAAvAAAAyAEyAAIAAAAUAAAA+AITAAMAAAAB AAIAAIKYAAIAAAAFAAABDIdpAAQAAAABAAABEsSlAAcAAAAcAAAEkAAABKxGVUpJ
-    RklMTQAARmluZVBpeCBGNDU1ICAgAAAAAEgAAAABAAAASAAAAA==
-</div>
+    data-show-line-nums="true" data-offset="5" title=""></div>
 
   <script type="module">
     import { decbParse } from './src/modules/decb_parser.mjs';
-
-    console.hex = (d) => console.log((Object(d).buffer instanceof ArrayBuffer ? new Uint8Array(d.buffer) : 
-      typeof d === 'string' ? (new TextEncoder('utf-8')).encode(d) : 
-      new Uint8ClampedArray(d)).reduce((p, c, i, a) => p + (i % 16 === 0 ? i.toString(16).padStart(6, 0) + '  ' : ' ') + 
-      c.toString(16).padStart(2, 0) + (i === a.length - 1 || i % 16 === 15 ? 
-      ' '.repeat((15 - i % 16) * 3) + Array.from(a).splice(i - i % 16, 16).reduce((r, v) => 
-      r + (v > 31 && v < 127 || v > 159 ? String.fromCharCode(v) : '.'), '  ') + '\n' : ''), ''));
 
     function handleFileSelect(evt) {
       var file = evt.target.files[0]; // FileList object

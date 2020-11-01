@@ -5,6 +5,7 @@ function markup_hex0rwindow(div) {
     var step = parseInt($(div).data('row-width'));
     var wordSize = parseInt($(div).data('word-size'));
     var rowBreak = parseInt($(div).data('row-break'));
+    var offset = parseInt($(div).data('offset'));
     var caption = $(div).data('caption');
     var highlightsStr = $(div).data('highlights').split(',');
     var trim = $(div).data('trim').toString() == "true"; ;
@@ -29,8 +30,6 @@ function markup_hex0rwindow(div) {
 
     div.text("");
     div.append("<table></table>");
-
-    var offset = 0;
 
     function applyHighlights(index) {
         for (var idx = 0; idx < highlights.length; idx++) {
