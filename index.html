@@ -5,8 +5,7 @@
   <meta charset="UTF-8" />
   <title>Minimal JS front-end App Example</title>
   <script src="./src/model/section.js"></script>
-
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js" type="text/javascript"></script>
   <script src="./src/view/hex0r.js" type="text/javascript"></script>
   <link rel="stylesheet" type="text/css" href="./src/view/hex0r.css" />
 </head>
@@ -46,9 +45,11 @@
       reader.onload = function () {
         let retVal = decbParse(reader.result)
         console.log(retVal.sections[0].data);
-        let base64String = btoa(String.fromCharCode(...new Uint8Array(retVal.sections[0].data)));
+        let base64String = btoa(String.fromCharCode(...new Uint8Array(retVal.sections[1].data)));
         console.log(base64String);
         document.getElementById('hexViewer').innerHTML = base64String;
+
+        markup_hex0rwindow($("#hexViewer"));
       }
 
       reader.readAsArrayBuffer(file);
