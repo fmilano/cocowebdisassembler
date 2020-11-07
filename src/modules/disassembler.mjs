@@ -1,11 +1,26 @@
+/**
+ * Decomposes/disassembled a binary buffer into an array of instructions
+ *
+ * 
+ * @param {ArrayBuffer} binaryBuffer uint8 buffer to decompose.
+ * @param {int} offset The vitual memory address in which the disassembly starts. 
+ * @return {Array} Array of insruction structures.
+ * 
+ * Fields:
+ * decodeSucceeded: true if the instruction was correctly decoded.
+ * address: the virtual address of the instruction
+ * size: the size of the instruction in bytes
+ * opcode: integer representing the opcode
+ * operands:
+ */
+
+ 
 export function disassemble(binaryBuffer, offset) {
-    var dv = new DataView(binaryBuffer);
-    var array = []; // empty array
+  const input = new Uint8Array(binaryBuffer);
 
-    // object literal notation to create your structures
-    array.push({ startAddress: 'abc', dissamblyString: 'LDA $F991', instruction: '', comment: '' });
-  }; 
 
-export function retWorld() {
-  return " world";
-}
+  for (let i = 0; i < input.byteLength; ++i) {
+
+  }
+
+}; 
