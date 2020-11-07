@@ -1,3 +1,10 @@
+/**
+ * Decomposes a DECB binary file into its different sections.
+ * 
+ * @param binaryBuffer uint8 buffer containing the DECB binary file to analyze
+ * @return { status: int, msg: string, execAddress: int, sections: Array of { startAddress: int, length: int, data: ArrayBuffer} } 
+ */
+
 export function decbParse(binaryBuffer) {
     const states = {
         PREAMBLE_MAGIC_NUMBER: "preamble_magic_number",
@@ -116,13 +123,6 @@ export function decbParse(binaryBuffer) {
     }
 
 
-    return { status: 0, execAddress: execAddr, sections: sections };
-
-    //std::cout << "Execution address: " << std::hex << execAddr << std::dec << " (" << execAddr << ")" << std::endl;
-
-    //std::cout << "Total sections: " << parsedSections << std::endl;
-
-    // object literal notation to create your structures
-
+    return { status: 0, msg: "Ok", execAddress: execAddr, sections: sections };
 };
 
