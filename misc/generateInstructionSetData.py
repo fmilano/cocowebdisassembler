@@ -6,15 +6,15 @@
 import csv
 
 # maps the addressing mode to the CSV table index
-modes = {
-    'imm': 2,
-    'dir': 5,
-    'idx': 8,
-    'ext': 11,
-    'inh': 14,
-    'rel': 17,
-    'reg': 20,
-    'mem': 23    
+addressingModes = {
+    'immediate': 2,
+    'direct': 5,
+    'indexed': 8,
+    'extended': 11,
+    'inherent': 14,
+    'relative': 17,
+    'register': 20
+    #'memory': 23    
 }
 
 with open('6x09_instruction_set.csv') as csv_file:
@@ -25,12 +25,20 @@ with open('6x09_instruction_set.csv') as csv_file:
         # skips the title and subtitle rows
         if line_count >= 2 and is6809:
             mnemonic = row[1]
-            for mode in modes:
-                index = modes[mode]
+            for addressingMode in addressingModes:
+                index = addressingModes[addressingMode]
                 opcode = row[index]
                 length = row[index+2]
 
+                formatTemplate = "``"
+                if addressingMode == 'inherent':
+                    formatTemplate = f"`{mnemonic}`"
+                elif addressingMode == 'immediate':
+                    formatTemplate = f"`{mnemonic}     #${{operand}}`"
+                else:
+                    formatTemplate = f"`{mnemonic}     ${{operand}}`"
+           
                 if opcode:
-                    print(f'{opcode}: {{ mnemonic: \"{mnemonic}\", length: {length} }},')
+                    print(f'0x{opcode}: {{ mnemonic: \"{mnemonic}\", length: {length[0]}, addressingMode: {addressingMode}, format: {formatTemplate} }},')
 
         line_count += 1
