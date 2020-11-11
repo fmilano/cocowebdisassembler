@@ -8,7 +8,7 @@ const AddressingMode = Object.freeze({
   register:"register"
 })
 
-const instructions = Object.freeze({
+const Opcodes = Object.freeze({
   0x3A: { mnemonic: "ABX", length: 1, addressingMode: inherent, format: `ABX` },
   0x89: { mnemonic: "ADCA", length: 2, addressingMode: immediate, format: `ADCA     #${operand}` },
   0x99: { mnemonic: "ADCA", length: 2, addressingMode: direct, format: `ADCA     ${operand}` },
@@ -298,8 +298,59 @@ const instructions = Object.freeze({
 export function disassemble(binaryBuffer, offset) {
   const input = new Uint8Array(binaryBuffer);
 
+  let instructions = [];
 
-  for (let i = 0; i < input.byteLength; ++i) {
+  let virtualMemoryAddress = offset;
+
+  let i = 0;
+  while (i < input.byteLength) {
+
+    let currentLen = 1;
+
+    let opcode = input[i];
+    if (opcode == 0x10 || opcode == 0x10) {
+
+      ++currentLen;
+      ++i;
+      if (i >= input.byteLength) {
+        instructions.push({ succeeded: false, message: "Second opcode byte not found", mnemonic: "???" });
+        return instructions;
+      }
+
+      opcode <<= 8;
+      opcode += input[i];
+
+      instruction = Opcodes[opcode];
+      if (instruction === undefined)
+      {
+        instructions.push({ succeeded: false, message: "Opcode not found", mnemonic: "???" });
+        return instructions;
+      }
+
+      
+      if (instruction.addressingMode === AddressingMode.inherent) {
+        // assert that currentLen === instruction.length
+        instructions.push({ succeeded: true, message: "OK", mnemonic: instruction.mnemonic, address: virtualMemoryAddress });
+      }
+      else if (instruction.addressingMode === AddressingMode.immediate) {
+      }
+      else if (instruction.addressingMode === AddressingMode.inherent) {
+      }
+      else if (instruction.addressingMode === AddressingMode.inherent) {
+      }
+      else if (instruction.addressingMode === AddressingMode.inherent) {
+      }
+
+
+
+
+      ++i;
+
+      virtualMemoryAddress += i;
+
+    }
+
+    
 
   }
 
