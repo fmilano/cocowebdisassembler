@@ -1,19 +1,14 @@
 /**
- * @fileOverview  The model class Section with attribute definitions and storage management methods
- * @author Federico Milano
- * @copyright Copyright 2020 Federico Milano 
- * @license This code is licensed under The Apache License 2.0.
- */
-/**
- * Constructor function for the class Section 
+ * Constructor function for the class Section
  * @constructor
- * @param {{type: string, offset: number, length: number, name:string}} slots - Object creation slots.
+ * @param {{type: string, offset: number, length: number, name:string}} slots - Object creation slots. 
  */
-function Section( slots) {
-    this.type = slots.type;
-    this.offset = slots.offset;
-    this.length = slots.length;
-    this.name = slots.name;
+
+export function Section(name, size, virtualMemoryAddress) {
+    this.name = name;
+    this.size = size;
+    this.virtualMemoryAddress = virtualMemoryAddress;
+    //this.buffer = slots.buffer
   };
 
 /***********************************************
@@ -21,16 +16,28 @@ function Section( slots) {
 ************************************************/
 Section.instances = {};  // initially an empty associative array
 
+export function getAllSections() {
+  let sections = [];
+  const keys = Object.keys(Section.instances);
+  console.log("aa " + keys);
+  keys.forEach(key => {
+    sections.push(Section.instances[key]);
+    console.log(Section.instances[key]);    
+  });
+
+  return sections;
+}
+
 /*********************************************************
 ***  Class-level ("static") storage management methods ***
 **********************************************************/
 // Convert row to object
 Section.convertRow2Obj = function (sectionRow) {
-  var section = new Section(sectionRow);
+  var section = new Section(sectionRow.name, sectionRow.size, sectionRow.virtualMemoryAddress);
   return section;
 };
 // Load the section table from Local Storage
-Section.loadAll = function () {
+export function loadAllSections() {
   var key="", keys=[], sectionTableString="", sectionTable={}, i=0;  
   try {
     if (localStorage.getItem("sectionTable")) {
@@ -50,7 +57,7 @@ Section.loadAll = function () {
   }
 };
 //  Save all section objects to Local Storage
-Section.saveAll = function () {
+export function saveAllSections() {
   var sectionTableString="", error=false,
       nmrOfSections = Object.keys(Section.instances).length;  
   try {
@@ -63,10 +70,9 @@ Section.saveAll = function () {
   if (!error) console.log(nmrOfSections + " sections saved.");
 };
 //  Create a new section row
-Section.add = function (slots) {
-  var section = new Section(slots);
-  Section.instances[slots.offset] = section;
-  console.log("Section " + slots.offset + " created!");
+export function addSection(section) {
+  Section.instances[section.name] = section;
+  console.log("Section " + section.name + " created!");
 };
 //  Update an existing section row
 Section.update = function (slots) {
@@ -84,20 +90,23 @@ Section.destroy = function (offset) {
     console.log("There is no section with OFFSET " + offset + " in the database!");
   }
 };
-/*******************************************
-*** Auxiliary methods for testing **********
-********************************************/
-//  Create and save test data
-Section.createTestData = function () {
-  Section.instances[0x0F00] = new Section({offset:0x0F00, type:"data", name:"data1", length:2000});
-  Section.instances[0x1000] = new Section({offset:0x1000, type:"code", name:"code1", length:2000});
-  Section.instances[0x4A00] = new Section({offset:0x4A00, type:"code", name:"code1", length:2000});
-  Section.saveAll();
-};
+
 //  Clear data
-Section.clearData = function () {
+export function clearAllSections() {
   if (confirm("Do you really want to delete all section data?")) {
     Section.instances = {};
     localStorage.setItem("sections", "{}");
   }
 };
+
+/*******************************************
+*** Auxiliary methods for testing **********
+********************************************/
+//  Create and save test data
+/*Section.createTestData = function () {
+  Section.instances[0x0F00] = new Section({offset:0x0F00, type:"data", name:"data1", length:2000});
+  Section.instances[0x1000] = new Section({offset:0x1000, type:"code", name:"code1", length:2000});
+  Section.instances[0x4A00] = new Section({offset:0x4A00, type:"code", name:"code1", length:2000});
+  Section.saveAll();
+};
+*/
