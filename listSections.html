@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Color Computer web disassembler</title>
+    <link rel="stylesheet" type="text/css" href="./lib/bootstrap.min.css" />
+</head>
+
+<body>
+
+    <div id="navbar"></div>
+
+    <table id="sections" class="table">
+        <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Size</th>
+                <th scope="col">VMA</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script type="module">
+        import { setupNavBar } from './src/view/setupNavBar.mjs';
+        import { Section, loadAllSections, getAllSections } from './src/model/section.mjs';
+        
+
+        function onLoad() {
+            setupNavBar();
+
+            loadAllSections();
+            const sections = getAllSections(); 
+
+            var tableBodyEl = document.querySelector("table#sections>tbody");
+            let keys = [], key = "", row = {}, i = 0;
+
+            console.log("pepe " + sections);
+            for (let i = 0; i < sections.length; i++) {
+                row = tableBodyEl.insertRow();
+                row.insertCell(-1).textContent = sections[i].name;
+                row.insertCell(-1).textContent = sections[i].size + " bytes";
+                row.insertCell(-1).textContent = "$" + sections[i].virtualMemoryAddress.toString(16);
+
+                console.log("test " + i);
+            }
+        }
+
+        window.addEventListener("load", onLoad);
+
+
+    </script>
+</body>
+
+</html>
