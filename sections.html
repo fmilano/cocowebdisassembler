@@ -37,14 +37,11 @@
             var tableBodyEl = document.querySelector("table#sections>tbody");
             let keys = [], key = "", row = {}, i = 0;
 
-            console.log("pepe " + sections);
             for (let i = 0; i < sections.length; i++) {
                 row = tableBodyEl.insertRow();
                 row.insertCell(-1).textContent = sections[i].name;
                 row.insertCell(-1).textContent = sections[i].size + " bytes";
                 row.insertCell(-1).textContent = "$" + sections[i].virtualMemoryAddress.toString(16);
-
-                console.log("test " + i);
             }
         }
 

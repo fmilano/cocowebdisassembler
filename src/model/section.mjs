@@ -4,11 +4,12 @@
  * @param {{type: string, offset: number, length: number, name:string}} slots - Object creation slots. 
  */
 
-export function Section(name, size, virtualMemoryAddress) {
+export function Section(name, size, virtualMemoryAddress, buffer, disassembly) {
     this.name = name;
     this.size = size;
     this.virtualMemoryAddress = virtualMemoryAddress;
-    //this.buffer = slots.buffer
+    this.buffer = Array.from(buffer)
+    this.disassembly = disassembly
   };
 
 /***********************************************
@@ -33,7 +34,7 @@ export function getAllSections() {
 **********************************************************/
 // Convert row to object
 Section.convertRow2Obj = function (sectionRow) {
-  var section = new Section(sectionRow.name, sectionRow.size, sectionRow.virtualMemoryAddress);
+  var section = new Section(sectionRow.name, sectionRow.size, sectionRow.virtualMemoryAddress, Uint8Array.from(sectionRow.buffer), sectionRow.disassembly);
   return section;
 };
 // Load the section table from Local Storage

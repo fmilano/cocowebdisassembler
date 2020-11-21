@@ -4,9 +4,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>Color Computer web disassembler</title>
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js" type="text/javascript"></script>
-  <script src="./src/view/hex0r.js" type="text/javascript"></script>
-  <link rel="stylesheet" type="text/css" href="./src/view/hex0r.css" />
   <link rel="stylesheet" type="text/css" href="./lib/bootstrap.min.css" />
 </head>
 
@@ -16,11 +13,6 @@
 
   <input type="file" id="files" name="files[]" accept=".bin" single />
   <output id="list"></output>
-
-  <!--<div id="hexViewer" class="hex0rwindow" data-row-width="16" data-word-size="1" data-row-break="8"
-    data-trim="true" data-base64="true" data-caption="Section hex dump"
-    data-highlights=""
-    data-show-line-nums="true" data-offset="5" title=""></div>-->
 
   <script type="module">
     import { decbParse } from './src/modules/decb_parser.mjs';
@@ -38,16 +30,11 @@
       var reader = new FileReader();
 
       reader.onload = function () {
-        let retVal = decbParse(reader.result)
-        //let base64String = btoa(String.fromCharCode(...new Uint8Array(retVal.sections[1].data)));
-        //console.log(base64String);
-        //document.getElementById('hexViewer').innerHTML = base64String;
-
-        //markup_hex0rwindow($("#hexViewer"));
+        let retVal = decbParse(reader.result);
 
         const sections = retVal.sections;
         for (let i = 0; i < sections.length; i++) {
-          let section = new Section(i, sections[i].length, sections[i].startAddress);
+          let section = new Section(i, sections[i].length, sections[i].startAddress, sections[i].data, "LDA $4000");
           addSection(section);
         }
 
