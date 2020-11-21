@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Color Computer web disassembler</title>
+    <link rel="stylesheet" type="text/css" href="./lib/bootstrap.min.css" />
+</head>
+
+<body>
+
+    <div id="navbar"></div>
+
+    <script type="module">
+        import { setupNavBar } from './src/view/setupNavBar.mjs';
+   
+        function onLoad() {
+            setupNavBar();
+
+        }
+
+        window.addEventListener("load", onLoad);
+
+    </script>
+</body>
+
+</html>
