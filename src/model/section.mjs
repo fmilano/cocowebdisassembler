@@ -20,10 +20,8 @@ Section.instances = {};  // initially an empty associative array
 export function getAllSections() {
   let sections = [];
   const keys = Object.keys(Section.instances);
-  console.log("aa " + keys);
   keys.forEach(key => {
     sections.push(Section.instances[key]);
-    console.log(Section.instances[key]);    
   });
 
   return sections;
@@ -94,10 +92,8 @@ Section.destroy = function (offset) {
 
 //  Clear data
 export function clearAllSections() {
-  if (confirm("Do you really want to delete all section data?")) {
-    Section.instances = {};
-    localStorage.setItem("sections", "{}");
-  }
+  Section.instances = {};
+  localStorage.setItem("sectionTable", "{}");
 };
 
 /*******************************************

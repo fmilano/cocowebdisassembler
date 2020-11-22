@@ -11,13 +11,28 @@
 
     <div id="navbar"></div>
 
+    <div id="disassembly"></div>
+
     <script type="module">
         import { setupNavBar } from './src/view/setupNavBar.mjs';
+        import { Section, loadAllSections, getAllSections } from './src/model/section.mjs';
+        import { disassemble } from './src/modules/disassembler.mjs';
    
         function onLoad() {
             setupNavBar();
 
-        }
+            loadAllSections();
+            const sections = getAllSections(); 
+
+            let dis = "";
+            for (let i = 0; i < sections.length; i++) {
+                dis += sections[i].virtualMemoryAddress.toString(16) + "\n";
+                disassemble(sections[i].buffer, sections[i].virtualMemoryAddress);
+
+            }
+
+            document.getElementById('disassembly').innerText = dis;
+        }        
 
         window.addEventListener("load", onLoad);
 
