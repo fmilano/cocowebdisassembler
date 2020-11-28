@@ -25,27 +25,28 @@
             const sections = getAllSections();
 
             let dis = "";
-            for (let i = 0; i < sections.length; i++) {
-                dis += "Section " + sections[i].name + ":</br>";
+            for (let i = 0; i < sections.length; i++) 
+            {
+                dis += "&emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; ORG " + sections[i].virtualMemoryAddress.toString(16).padStart(4, '0').toUpperCase() + "</br>";
                 let instructionList = disassemble(sections[i].buffer, sections[i].virtualMemoryAddress);
-                for (let j = 0; j < instructionList.length; j++) {
-                    let instruction = instructionList[j];
-                    if (instruction.succeeded) {
-                        dis += instruction.virtualMemoryAddress.toString(16).toUpperCase() + " &emsp; " + instruction.format;
-                        if (instruction.operator) {
-                            dis += "$" + instruction.operator.toString(16).toUpperCase();
-                        }
-
-                            dis += '</br>';
+                for (let j = 0; j < instructionList.length; j++) 
+                {
+                    var instruction = instructionList[j];
+                    dis += sections[i].name + ":" + instruction.virtualMemoryAddress.toString(16).padStart(4, '0').toUpperCase() + " &emsp; ";
+                    let rawData = Uint8Array.from(instruction.rawData);
+                    for (let h = 0; h < rawData.length; ++h)
+                    {
+                        dis += rawData[h].toString(16).padStart(2, '0').toUpperCase()
                     }
-                    else {
-                        dis += "??? DECODE ERROR: " + instruction.message + "</br>";
+                    dis += " &emsp; &emsp; &emsp; " + instruction.format;
+                    if (instruction.operator !== undefined) {
+                        dis += "$" + instruction.operator.toString(16).padStart(instruction.operatorLength*2, '0').toUpperCase();
                     }
 
+                    dis += '</br>';
                 }
-            }
 
-            console.log(dis);
+            }
 
             document.getElementById('disassembly').innerHTML = dis;
         }

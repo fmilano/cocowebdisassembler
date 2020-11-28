@@ -1,4 +1,5 @@
 const AddressingMode = Object.freeze({
+  none:"none",
   immediate:"immediate",
   direct:"direct",
   indexed:"indexed",
@@ -287,7 +288,7 @@ const Opcodes = Object.freeze({
  * @return {Array} Array of insruction structures.
  * 
  * Fields:
- * decodeSucceeded: true if the instruction was correctly decoded.
+ * succeeded: true if the instruction was correctly decoded.
  * address: the virtual address of the instruction
  * size: the size of the instruction in bytes
  * opcode: integer representing the opcode
@@ -303,73 +304,108 @@ export function disassemble(binaryBuffer, offset) {
   let virtualMemoryAddress = offset;
 
   let i = 0;
-  while (i < input.byteLength) {
+  while (i < input.byteLength) 
+  {
 
     let currentInstructionLength = 1;
+    let currentOperatorLength = 0;
+
+    let instruction = undefined;
 
     let opcode = input[i];
-    if (opcode == 0x10 || opcode == 0x11) {
-
-      ++i;
-      ++currentInstructionLength;
-      
-      if (i >= input.byteLength) {
-        instructions.push({ succeeded: false, message: "Second opcode byte not found", mnemonic: "???" });
-        return instructions;
-      }
-
-      opcode <<= 8;
-      opcode += input[i];
-    }
-
-    // Clone the instruction template
-    let instruction = Object.assign({}, Opcodes[opcode]);
-    if (instruction === undefined)
+    if (opcode == 0x10 || opcode == 0x11)
     {
-      instructions.push({ succeeded: false, message: "Opcode not found", mnemonic: "???" });
-      return instructions;
-    }
-
-    // Read the operator if present
-    if (currentInstructionLength < instruction.length) { 
-      
-      ++i;
-      ++currentInstructionLength;
-
-      if (i >= input.byteLength) {
-        instructions.push({ succeeded: false, message: "Operator byte not found", mnemonic: "???" });
-        return instructions;
-      }
-
-      let operator = input[i];
-
-      if (currentInstructionLength < instruction.length) {
-
+      if (i + 1 < input.byteLength) {
         ++i;
         ++currentInstructionLength;
-
-        if (i >= input.byteLength) {
-          instructions.push({ succeeded: false, message: "Operator byte not found", mnemonic: "???" });
-          return instructions;
-        }
-        
-        operator <<= 8;
-        operator += input[i];
+      
+        opcode <<= 8;
+        opcode += input[i];
       }
-
-      instruction.operator = operator;
-
+      else
+      {
+        instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: `FCB &emsp; ` };
+        instruction.operator = input[i];
+        instruction.succeeded = false;
+      }
     }
 
-    instruction.succeeded = true;
-    instruction.message = "Ok";
+    if (instruction === undefined) 
+    {
+      instruction = Object.assign({}, Opcodes[opcode]);
+    }
+
+    if (instruction.mnemonic === undefined)
+    { 
+      instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: `FCB &emsp; ` };
+      i = i - currentInstructionLength + 1;
+      currentInstructionLength = 1;
+      instruction.operator = input[i];
+      instruction.succeeded = false;
+    }
+
+    // Read the operator 
+    if (currentInstructionLength < instruction.length) 
+    { 
+            
+      if (i + 1 < input.byteLength) 
+      {
+        ++i;
+        ++currentInstructionLength;
+        ++currentOperatorLength;
+
+        let operator = input[i];
+
+        if (currentInstructionLength < instruction.length) {
+
+          if (i + 1 < input.byteLength) 
+          {
+            ++i;
+            ++currentInstructionLength;
+            ++currentOperatorLength;
+
+            operator <<= 8;
+            operator += input[i];
+
+            instruction.operator = operator;
+            instruction.succeeded = true;
+          }
+          else
+          {
+            instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: `FCB &emsp; ` };
+            i = i - currentInstructionLength + 1;
+            currentInstructionLength = 1;
+            currentOperatorLength = 0;
+            instruction.operator = input[i];
+            instruction.succeeded = false;
+          }
+        }
+        else
+        {
+          instruction.operator = operator;
+          instruction.succeeded = true;
+        }
+      }
+      else
+      {
+        instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: `FCB &emsp; ` };
+        i = i - currentInstructionLength + 1;
+        currentInstructionLength = 1;
+        currentOperatorLength = 0;
+        instruction.operator = input[i];
+        instruction.succeeded = false;
+      }
+    }
+
+    instruction.rawData = input.slice(i - currentInstructionLength + 1, i+1);
     instruction.virtualMemoryAddress = virtualMemoryAddress;
+    instruction.operatorLength       = currentOperatorLength;
  
     instructions.push(instruction);
 
     ++i;
 
-    virtualMemoryAddress += i;
+    virtualMemoryAddress += currentInstructionLength;
 
   }
 
