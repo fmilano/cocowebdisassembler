@@ -334,25 +334,19 @@ export function disassemble(binaryBuffer, offset)
   while (i < input.byteLength) 
   {
     let succeeded = true;
-    let initialIndex = i;
-    let currentInstructionLength = 1;
-    let currentOperandLength = 0;
-    let operand = undefined;
 
+    let initialIndex = i;
+    let currentOpcodeLength = 1;
   
-    let opcode = input[i];
+    let opcode = input[initialIndex];
     if (opcode == 0x10 || opcode == 0x11)
     {
-      let r = readBigEndian(input, i, 2);
-      if (r.succeeded)
+      let r = readBigEndian(input, initialIndex, 2);
+      succeeded = r.succeeded;
+      if (succeeded)
       {
-        i += 2;
-        currentInstructionLength += 2;
+        currentOpcodeLength = 2;
         opcode = r.value;
-      }
-      else
-      {
-        succeeded = false;
       }
     }
 
@@ -364,139 +358,204 @@ export function disassemble(binaryBuffer, offset)
       {
         succeeded = false;
       }
-
     }
+
+    // Read the operand
+    let currentOperandLength = 0;
+    let operand = undefined;
 
     if (succeeded)
     {    
-      // Read the operand
-      let remainingLength = instruction.length - currentInstructionLength; 
-      let r = readBigEndian(input, i, remainingLength);
+      let fixOperandLength = instruction.length - currentOpcodeLength; 
+      let r = readBigEndian(input, initialIndex + currentOpcodeLength, fixOperandLength);
       succeeded = r.succeeded;
       if (succeeded) 
       {
-        i += remainingLength;
-        currentInstructionLength += remainingLength;
-        currentOperandLength += remainingLength;
-
+        currentOperandLength = fixOperandLength;
         operand = r.value;
       }
+    }
       
-      if (succeeded && instruction.addressingMode === AddressingMode.inherent)
+    if (succeeded && instruction.addressingMode === AddressingMode.inherent)
+    {
+      instruction.format = instruction.mnemonic;
+    }
+    else if (succeeded && instruction.addressingMode === AddressingMode.immediate)
+    {
+      instruction.format = instruction.mnemonic + " &emsp; #$" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
+    }
+    else if (succeeded && instruction.addressingMode === AddressingMode.extended) 
+    {
+      instruction.format = instruction.mnemonic + " &emsp; $" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
+    }
+    else if (succeeded && instruction.addressingMode === AddressingMode.direct) 
+    {
+      instruction.format = instruction.mnemonic + " &emsp; <$" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
+    }
+    else if (succeeded && instruction.addressingMode === AddressingMode.relative)
+    {
+      if (operand > 127)
       {
-        instruction.format = instruction.mnemonic;
+        operand = operand - 256;
       }
-      else if (succeeded && instruction.addressingMode === AddressingMode.immediate)
-      {
-        instruction.format = instruction.mnemonic + " &emsp; #" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
-      }
-      else if (succeeded && instruction.addressingMode === AddressingMode.extended) 
-      {
-        instruction.format = instruction.mnemonic + " &emsp; #" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
-      }
-      else if (succeeded && instruction.addressingMode === AddressingMode.direct) 
-      {
-        instruction.format = instruction.mnemonic + " &emsp; <" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
-      }
-      else if (succeeded && instruction.addressingMode === AddressingMode.indexed) 
-      {
-        let registerField = (operand & 0x60) >> 5; // 0bxRRxxxxx
-        let operandFormat = "";
 
-        let indirect = (operand & 0x10) >> 4;
-        let bit7 = (operand & 0x80) >> 7;
-        if (bit7 === 1) 
+      let effectiveAddress = virtualMemoryAddress + currentOpcodeLength + currentOperandLength + operand;
+      instruction.format = instruction.mnemonic + " &emsp; $" + effectiveAddress.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
+      instruction.operand = operand;
+      instruction.effectiveAddress = effectiveAddress;
+    }
+    else if (succeeded && instruction.addressingMode === AddressingMode.indexed) 
+    {
+      let registerField = (operand & 0b01100000) >> 5; 
+      let operandFormat = "";
+
+      let indirect = (operand & 0b00010000) >> 4;
+      let bit7 = (operand & 0b10000000) >> 7;
+      if (bit7 === 1) 
+      {
+        let indexedAddressingMode = operand & 0b00001111;
+
+        if (indexedAddressingMode === 0b1100 || indexedAddressingMode === 0b1101)
         {
-          let addressingMode = operand & 0x0F;
+          // Constant offset from PC
+          let bytesToRead = 1;
+          if (indexedAddressingMode === 0b1101)
+            bytesToRead = 2;
 
-          if (addressingMode === 0x0C || addressingMode === 0x0D || (addressingMode === 0x0F && indirect === 1)) 
+          let r = readBigEndian(input, initialIndex + currentOpcodeLength + currentOperandLength, bytesToRead);
+          succeeded = r.succeeded;
+          if (succeeded)
+          {
+            currentOperandLength += bytesToRead;
+            // n,PCR
+            operandFormat = "$" + r.value.toString(16).padStart(bytesToRead * 2, '0').toUpperCase() + ",PCR";
+          }
+        }
+        else
+        {
+          let register = Register[registerField];
+          if (register === undefined)
+          {
+            succeeded = false;
+          }
+
+          if (succeeded && indexedAddressingMode === 0b0100)
+          {
+            // ,R
+            operandFormat = "," + register;
+          }
+          else if (succeeded && indexedAddressingMode === 0b0110)
+          {
+            // A,R
+            operandFormat = "A," + register;
+          }
+          else if (succeeded && indexedAddressingMode === 0b0101)
+          {
+            // B,R
+            operandFormat = "B," + register;
+          }
+          else if (succeeded && indexedAddressingMode === 0b1011)
+          {
+            // D,R
+            operandFormat = "B," + register;
+          }
+          else if (succeeded && indexedAddressingMode === 0b0000 && !indirect)
+          {
+            // ,R+
+            operandFormat = "," + register + "+";
+          }
+          else if (succeeded && indexedAddressingMode === 0b0001)
+          {
+            // ,R++
+            operandFormat = "," + register + "++";
+          }
+          else if (succeeded && indexedAddressingMode === 0b0010 && !indirect)
+          {
+            // ,-R
+            operandFormat = ",-" + register;
+          }
+          else if (succeeded && indexedAddressingMode === 0b0011)
+          {
+            // ,--R
+            operandFormat = ",--" + register;
+          }
+          else if (succeeded && (indexedAddressingMode === 0b1000 || indexedAddressingMode === 0b1001))
           {
             let bytesToRead = 1;
-            if (addressingMode !== 0x0C)
+            if (indexedAddressingMode === 0b1001)
               bytesToRead = 2;
 
-            let r = readBigEndian(input, i, bytesToRead);
+            let r = readBigEndian(input, initialIndex + currentOpcodeLength + currentOperandLength, bytesToRead);
             succeeded = r.succeeded;
-            if (succeeded) 
-            {
-              i += bytesToRead;
-              currentInstructionLength += bytesToRead;
-              currentOperandLength += bytesToRead;
-              let offset = input[i];
-              if (addressingMode === 0x0F && indirect === 1)
-              {
-                operandFormat = "$" + offset.toString(16).padStart(2, '0').toUpperCase();
-              }
-              else
-              {
-                operandFormat = "$" + offset.toString(16).padStart(bytesToRead*2, '0').toUpperCase() + ",PCR";
-              }
-            }          
-          }
-          else 
-          {
-            let register = Register[registerField];
-            if (register === undefined)
-            {
-              instruction.succeeded = false;
-            }
-        
-            if (succeeded && addressingMode === 0x04) // Constant offset address from R
-            {
-              operandFormat = "," + register;
-            }
-            //else if (addressingMode === )
-
-
-            
-
-            }
-          }
-          
-          if (indirect === 1)
-          {
-            operandFormat = "[" + operandFormat + "]";
-          }
-
-        }
-        else // bit7 === 0
-        {
-          if (indirect === 0)
-          {
-            let register = Register[registerField];
-            if (register === undefined)
-            {
-              succeeded = false;
-            }
-
             if (succeeded)
             {
-              // 5 bit offset, direct
-              let offset = operand & 0x1F; 
-              operandFormat = "$" + offset.toString(16).padStart(2, '0').toUpperCase() + "," + register;
+              currentOperandLength += bytesToRead;
+              // n,R
+              operandFormat = "$" + r.value.toString(16).padStart(bytesToRead * 2, '0').toUpperCase() + "," + register;
             }
           }
-          else // indirect, uses extra byte for offset 
+          else if (succeeded && indexedAddressingMode === 0b1111 && indirect)
           {
-            let r = readBigEndian(input, i, 1);
+            // extended indirect
+            let bytesToRead = 2;
+            let r = readBigEndian(input, initialIndex + currentOpcodeLength + currentOperandLength, bytesToRead);
             succeeded = r.succeeded;
-            if (succeeded) 
+            if (succeeded)
             {
-              ++i;
-              ++currentInstructionLength;
-              ++currentOperandLength;
-              let offset = r.value;
-              operandFormat = "[$" + offset.toString(16).padStart(2, '0').toUpperCase() + "," + register + "]";
+              currentOperandLength += bytesToRead;
+              // n,R
+              operandFormat = "$" + r.value.toString(16).padStart(bytesToRead * 2, '0').toUpperCase();
             }
-          } 
+
+          }
+          else
+          {
+            succeeded = false;
+          }
         }
 
-        instruction.format = instruction.mnemonic + " &emsp; " + operandFormat;
+        if (succeeded && indirect)
+        {
+          operandFormat = "[" + operandFormat + "]";
+        }
 
-        
       }
+      else // bit7 === 0
+      {
+        let register = Register[registerField];
+        if (register === undefined)
+        {
+          succeeded = false;
+        }
+
+        if (indirect === 0)
+        {
+          if (succeeded)
+          {
+            // 5 bit offset, direct
+            let offset = operand & 0b00011111; 
+            operandFormat = "$" + offset.toString(16).padStart(2, '0').toUpperCase() + "," + register;
+          }
+        }
+        else if (succeeded) // indirect, uses extra byte for offset 
+        {
+          let bytesToRead = 1;
+          let r = readBigEndian(input, initialIndex + currentOpcodeLength + currentOperandLength, bytesToRead);
+          succeeded = r.succeeded;
+          if (succeeded)
+          {
+            currentOperandLength += bytesToRead;
+            // [n,R]
+            operandFormat = "[$" + r.value.toString(16).padStart(2, '0').toUpperCase() + "," + register + "]";
+          }
+        } 
+      }
+
+      instruction.format = instruction.mnemonic + " &emsp; " + operandFormat;
+      
     }
 
+    let currentInstructionLength = currentOpcodeLength + currentOperandLength;
 
     if (!succeeded)
     {
@@ -506,18 +565,20 @@ export function disassemble(binaryBuffer, offset)
       currentInstructionLength = 1;
     }
 
-    instruction.rawData = input.slice(initialIndex, i + 1);
+    instruction.rawData = input.slice(initialIndex, initialIndex + currentInstructionLength);
     instruction.virtualMemoryAddress = virtualMemoryAddress;
  
     instruction.succeeded = succeeded;
 
     instructions.push(instruction);
 
-    ++i;
+    // prepare next instruction processing
+    i += currentInstructionLength;
 
     virtualMemoryAddress += currentInstructionLength;
 
   }
 
+
   return instructions;
-}; 
+}
