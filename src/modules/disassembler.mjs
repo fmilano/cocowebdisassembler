@@ -9,6 +9,13 @@ const AddressingMode = Object.freeze({
   register:"register"
 })
 
+const Register = Object.freeze({
+  0x00:"X",
+  0x01:"Y",
+  0x02:"U",
+  0x03:"S"
+})
+
 const Opcodes = Object.freeze({
   0x3A: { mnemonic: "ABX", length: 1, addressingMode: AddressingMode.inherent, format: `ABX` },
   0x89: { mnemonic: "ADCA", length: 2, addressingMode: AddressingMode.immediate, format: `ADCA &emsp; #` },
@@ -300,6 +307,7 @@ export function disassemble(binaryBuffer, offset) {
   const input = new Uint8Array(binaryBuffer);
 
   let instructions = [];
+  let symbols = [];
 
   let virtualMemoryAddress = offset;
 
@@ -308,7 +316,8 @@ export function disassemble(binaryBuffer, offset) {
   {
 
     let currentInstructionLength = 1;
-    let currentOperatorLength = 0;
+    let currentOperandLength = 0;
+    let operand = undefined;
 
     let instruction = undefined;
 
@@ -324,8 +333,7 @@ export function disassemble(binaryBuffer, offset) {
       }
       else
       {
-        instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: `FCB &emsp; ` };
-        instruction.operator = input[i];
+        instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
         instruction.succeeded = false;
       }
     }
@@ -337,24 +345,23 @@ export function disassemble(binaryBuffer, offset) {
 
     if (instruction.mnemonic === undefined)
     { 
-      instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: `FCB &emsp; ` };
+      instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
       i = i - currentInstructionLength + 1;
       currentInstructionLength = 1;
-      instruction.operator = input[i];
       instruction.succeeded = false;
     }
 
-    // Read the operator 
-    if (currentInstructionLength < instruction.length) 
+    // Read the operand 
+    /*if (currentInstructionLength < instruction.length) 
     { 
             
       if (i + 1 < input.byteLength) 
       {
         ++i;
         ++currentInstructionLength;
-        ++currentOperatorLength;
+        ++currentOperandLength;
 
-        let operator = input[i];
+        operand = input[i];
 
         if (currentInstructionLength < instruction.length) {
 
@@ -362,44 +369,201 @@ export function disassemble(binaryBuffer, offset) {
           {
             ++i;
             ++currentInstructionLength;
-            ++currentOperatorLength;
+            ++currentOperandLength;
 
-            operator <<= 8;
-            operator += input[i];
+            operand <<= 8;
+            operand += input[i];
 
-            instruction.operator = operator;
+            operand = operand;
             instruction.succeeded = true;
           }
           else
           {
-            instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: `FCB &emsp; ` };
+            instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
             i = i - currentInstructionLength + 1;
             currentInstructionLength = 1;
-            currentOperatorLength = 0;
-            instruction.operator = input[i];
+            currentOperandLength = 0;
             instruction.succeeded = false;
           }
         }
         else
         {
-          instruction.operator = operator;
+          operand = operand;
           instruction.succeeded = true;
         }
       }
       else
       {
-        instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: `FCB &emsp; ` };
+        instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
         i = i - currentInstructionLength + 1;
         currentInstructionLength = 1;
-        currentOperatorLength = 0;
-        instruction.operator = input[i];
+        currentOperandLength = 0;
         instruction.succeeded = false;
       }
+    } */
+
+    if (instruction.addressingMode === AddressingMode.inherent)
+    {
+      instruction.format = instruction.mnemonic;
     }
+    else if (instruction.addressingMode === AddressingMode.immediate)
+    {
+      instruction.format = instruction.mnemonic + " &emsp; #" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
+    }
+    else if (instruction.addressingMode === AddressingMode.extended) 
+    {
+      let symbol = symbols[operand];
+      if (symbol === undefined)
+      {
+        symbols[operand] = "L" + operand.toString(16).padStart(4, '0').toUpperCase();
+      }
+    }
+    else if (instruction.addressingMode === AddressingMode.indexed) 
+    {
+      let registerField = (operand & 0x60) >> 5; // 0bxRRxxxxx
+      let operandFormat = "";
+
+      let indirect = (operand & 0x10) >> 4;
+      let bit7 = (operand & 0x80) >> 7;
+      if (bit7 === 1) 
+      {
+        let addressingMode = operand & 0x0F;
+
+        if (addressingMode === 0x0C) // 8 bit offset
+        {
+          if (i + 1 < input.byteLength) 
+          {
+            ++i;
+            ++currentInstructionLength;
+            ++currentOperandLength;
+            let offset = input[i];
+            operandFormat = "$" + offset.toString(16).padStart(2, '0').toUpperCase() + ",PCR";
+          }
+          else
+          {
+            instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
+            i = i - currentInstructionLength + 1;
+            currentInstructionLength = 1;
+            currentOperandLength = 0;
+            instruction.succeeded = false;
+          }
+        
+        }
+        else if (addressingMode === 0x0D || (addressingMode === 0x0F && indirect === 1)) // 16 bit offset || extended indirect
+        {
+          if (i + 2 < input.byteLength) 
+          {
+            ++i;
+            let offset = input[i] << 8;
+            ++i;
+            offset += input[i];
+            currentInstructionLength += 2;
+            currentOperandLength += 2;
+            if (addressingMode === 0x0D)
+            {
+              operandFormat = "$" + offset.toString(16).padStart(2, '0').toUpperCase() + ",PCR";
+            }
+            else
+            {
+              operandFormat = "$" + offset.toString(16).padStart(2, '0').toUpperCase();
+            }
+          }
+          else
+          {
+            instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
+            i = i - currentInstructionLength + 1;
+            currentInstructionLength = 1;
+            currentOperandLength = 0;
+            operand = input[i];
+            instruction.succeeded = false;
+          }
+        }
+        else 
+        {
+          let register = Register[registerField];
+          if (register === undefined)
+          {
+            instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
+            i = i - currentInstructionLength + 1;
+            currentInstructionLength = 1;
+            currentOperandLength = 0;
+            operand = input[i];
+            instruction.succeeded = false;
+          }
+          else
+          {
+            if (addressingMode === 0x04) // Constant offset address from R
+            {
+              operandFormat = "," + register;
+            }
+            //else if (addressingMode === )
+
+
+           
+
+          }
+        }
+        
+        if (indirect === 1)
+        {
+          operandFormat = "[" + operandFormat + "]";
+        }
+
+      }
+      else // bit7 === 0
+      {
+        if (indirect === 0)
+        {
+          let register = Register[registerField];
+          if (register === undefined)
+          {
+            instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
+            i = i - currentInstructionLength + 1;
+            currentInstructionLength = 1;
+            currentOperandLength = 0;
+            instruction.succeeded = false;
+          }
+          else
+          {
+            // 5 bit offset, direct
+            let offset = operand & 0x1F; 
+            operandFormat = "$" + offset.toString(16).padStart(2, '0').toUpperCase() + "," + register;
+          }
+        }
+        else // indirect, uses extra byte for offset 
+        {
+          if (i + 1 < input.byteLength) 
+          {
+            ++i;
+            ++currentInstructionLength;
+            ++currentOperandLength;
+            let offset = input[i];
+            operandFormat = "[$" + offset.toString(16).padStart(2, '0').toUpperCase() + "," + register + "]";
+          }
+          else
+          {
+            instruction = { mnemonic: "FCB", length: 1, addressingMode: AddressingMode.none, format: "FCB &emsp; $" + input[i].toString(16).padStart(2, '0').toUpperCase() };
+            i = i - currentInstructionLength + 1;
+            currentInstructionLength = 1;
+            currentOperandLength = 0;
+            instruction.succeeded = false;
+          }
+
+
+        } 
+
+
+      }
+
+      instruction.format = instruction.mnemonic + " &emsp; " + operandFormat;
+
+      
+    }
+
 
     instruction.rawData = input.slice(i - currentInstructionLength + 1, i+1);
     instruction.virtualMemoryAddress = virtualMemoryAddress;
-    instruction.operatorLength       = currentOperatorLength;
+    instruction.operandLength = currentOperandLength;
  
     instructions.push(instruction);
 
@@ -409,5 +573,5 @@ export function disassemble(binaryBuffer, offset) {
 
   }
 
-  return instructions;
+  return { instructions: instructions, symbols: symbols };
 }; 

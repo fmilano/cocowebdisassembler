@@ -28,7 +28,8 @@
             for (let i = 0; i < sections.length; i++) 
             {
                 dis += "&emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; &emsp; ORG " + sections[i].virtualMemoryAddress.toString(16).padStart(4, '0').toUpperCase() + "</br>";
-                let instructionList = disassemble(sections[i].buffer, sections[i].virtualMemoryAddress);
+                let disResult = disassemble(sections[i].buffer, sections[i].virtualMemoryAddress);
+                let instructionList = disResult.instructions;
                 for (let j = 0; j < instructionList.length; j++) 
                 {
                     var instruction = instructionList[j];
@@ -38,7 +39,11 @@
                     {
                         dis += rawData[h].toString(16).padStart(2, '0').toUpperCase()
                     }
-                    dis += " &emsp; &emsp; &emsp; " + instruction.format;
+                    let symbols = disResult.symbols;
+                    if (symbols[instruction.virtualMemoryAddress] !== undefined)
+                        dis += " &emsp; " + symbols[instruction.virtualMemoryAddress] + "  &emsp; " + instruction.format;
+                    else
+                        dis += " &emsp; &emsp; &emsp; " + instruction.format;
                     if (instruction.operator !== undefined) {
                         dis += "$" + instruction.operator.toString(16).padStart(instruction.operatorLength*2, '0').toUpperCase();
                     }
