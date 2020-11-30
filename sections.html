@@ -44,7 +44,7 @@
                 row.insertCell(-1).textContent = sections[i].size + " bytes";
                 row.insertCell(-1).textContent = "$" + sections[i].virtualMemoryAddress.toString(16);
                 console.log(sections[i].buffer);
-                var blob = new Blob(new Uint8Array(sections[i].buffer), {type: "application/octet-stream"});
+                var blob = new Blob([new Uint8Array(sections[i].buffer)], {type: "application/octet-stream"});
                 console.log(blob);
                 let url = window.URL.createObjectURL(blob);
                 row.insertCell(-1).innerHTML = '<a download="' + sections[i].name + '.raw" href="' + url + '">' + sections[i].name + '.raw</a>';
