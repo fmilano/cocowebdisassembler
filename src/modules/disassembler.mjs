@@ -326,6 +326,8 @@ export function disassemble(binaryBuffer, offset)
 {
   const input = new Uint8Array(binaryBuffer);
 
+  const effectiveAddressOrSymbol = "EFFECTIVE_ADDRESS_OR_SYMBOL";
+
   let instructions = [];
   
   let virtualMemoryAddress = offset;
@@ -386,11 +388,13 @@ export function disassemble(binaryBuffer, offset)
     }
     else if (succeeded && instruction.addressingMode === AddressingMode.extended) 
     {
-      instruction.format = instruction.mnemonic + " &emsp; $" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
+      instruction.format = instruction.mnemonic + " &emsp; " + effectiveAddressOrSymbol;
+      instruction.effectiveAddress = operand;
     }
     else if (succeeded && instruction.addressingMode === AddressingMode.direct) 
     {
-      instruction.format = instruction.mnemonic + " &emsp; <$" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
+      instruction.format = instruction.mnemonic + " &emsp; <" + + effectiveAddressOrSymbol;
+      instruction.effectiveAddress = operand;
     }
     else if (succeeded && instruction.addressingMode === AddressingMode.relative)
     {

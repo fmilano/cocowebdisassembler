@@ -17,6 +17,7 @@
                 <th scope="col">Name</th>
                 <th scope="col">Size</th>
                 <th scope="col">VMA</th>
+                <th scope="col">Raw file</th>
             </tr>
         </thead>
         <tbody>
@@ -42,6 +43,11 @@
                 row.insertCell(-1).textContent = sections[i].name;
                 row.insertCell(-1).textContent = sections[i].size + " bytes";
                 row.insertCell(-1).textContent = "$" + sections[i].virtualMemoryAddress.toString(16);
+                console.log(sections[i].buffer);
+                var blob = new Blob(new Uint8Array(sections[i].buffer), {type: "application/octet-stream"});
+                console.log(blob);
+                let url = window.URL.createObjectURL(blob);
+                row.insertCell(-1).innerHTML = '<a download="' + sections[i].name + '.raw" href="' + url + '">' + sections[i].name + '.raw</a>';
             }
         }
 
