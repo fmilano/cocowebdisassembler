@@ -44,7 +44,11 @@
                     }
 
 
-                    dis +=  " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; " + instruction.format + "</br>";
+                    dis +=  " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; " + instruction.mnemonic;
+                    if (instruction.operandText)
+                        dis += " &nbsp; " + instruction.operandText;
+                        
+                    dis += "</br>";
                 }
 
             }

@@ -1,3 +1,5 @@
+const effectiveAddressOrSymbol = "EFFECTIVE_ADDRESS_OR_SYMBOL";
+
 const AddressingMode = Object.freeze({
   none:"none",
   immediate:"immediate",
@@ -322,11 +324,40 @@ function readBigEndian(input, index, length)
   return {succeeded: result, value: val};
 }
 
+function convertToTwosComplement(unsignedValue, lengthInBits) 
+{
+  let retVal = unsignedValue;
+  
+  if (lengthInBits === 5 && unsignedValue > Math.pow(2, 4) - 1)
+  {
+    retVal = unsignedValue - Math.pow(2, 5);
+  }
+
+  if (lengthInBits === 8 && unsignedValue > Math.pow(2, 7) - 1)
+  {
+    retVal = unsignedValue - Math.pow(2, 8);
+  }
+
+  // convert to 16 bit 2's complement
+  if (lengthInBits === 16 && unsignedValue > Math.pow(2, 15) - 1)
+  {
+    retVal = operand - Math.pow(2, 16);
+  }
+
+  return retVal;
+}
+
+function toHexa(value, lengthInBytes)
+{
+  //! \todo: fix for negative numbers
+  return "$" + value.toString(16).padStart(lengthInBytes * 2, '0').toUpperCase();
+}
+
 export function disassemble(binaryBuffer, offset)
 {
   const input = new Uint8Array(binaryBuffer);
 
-  const effectiveAddressOrSymbol = "EFFECTIVE_ADDRESS_OR_SYMBOL";
+
 
   let instructions = [];
   
@@ -378,41 +409,43 @@ export function disassemble(binaryBuffer, offset)
       }
     }
       
-    if (succeeded && instruction.addressingMode === AddressingMode.inherent)
+    if (succeeded && instruction.addressingMode === AddressingMode.immediate)
     {
-      instruction.format = instruction.mnemonic;
-    }
-    else if (succeeded && instruction.addressingMode === AddressingMode.immediate)
-    {
-      instruction.format = instruction.mnemonic + " &emsp; #$" + operand.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
+      instruction.operand = operand;
+      instruction.operandLength = currentOperandLength;
+
+      instruction.operandText = "#" + toHexa(operand, currentOperandLength);
     }
     else if (succeeded && instruction.addressingMode === AddressingMode.extended) 
     {
-      instruction.format = instruction.mnemonic + " &emsp; " + effectiveAddressOrSymbol;
+      instruction.operandTemplate = effectiveAddressOrSymbol;
       instruction.effectiveAddress = operand;
+      instruction.addressLength = currentOperandLength; // this should be always 2
+
+      instruction.operandText = toHexa(operand, currentOperandLength);
     }
     else if (succeeded && instruction.addressingMode === AddressingMode.direct) 
     {
-      instruction.format = instruction.mnemonic + " &emsp; <" + + effectiveAddressOrSymbol;
-      instruction.effectiveAddress = operand;
+      instruction.effectiveAddressLowerByte = operand;
+
+      instruction.operandText = "<" + toHexa(operand, currentOperandLength);
     }
     else if (succeeded && instruction.addressingMode === AddressingMode.relative)
     {
-      if (operand > 127)
-      {
-        operand = operand - 256;
-      }
+      instruction.relativeAddress = convertToTwosComplement(operand, currentOperandLength * 8);
+      instruction.relativeAddressLength = currentOperandLength;
 
-      let effectiveAddress = virtualMemoryAddress + currentOpcodeLength + currentOperandLength + operand;
-      instruction.format = instruction.mnemonic + " &emsp; $" + effectiveAddress.toString(16).padStart(currentOperandLength * 2, '0').toUpperCase();
-      instruction.operand = operand;
-      instruction.effectiveAddress = effectiveAddress;
+      instruction.comment = toHexa(instruction.relativeAddress, currentOperandLength) + ",PCR"; 
+      
+      instruction.effectiveAddress = (virtualMemoryAddress + currentOpcodeLength + currentOperandLength + instruction.relativeAddress) % Math.pow(2, 16);
+      instruction.operandTemplate = effectiveAddressOrSymbol;
+
+      instruction.operandText = instruction.operandTemplate.replace(effectiveAddressOrSymbol, toHexa(instruction.relativeAddress, currentOperandLength)); 
     }
     else if (succeeded && instruction.addressingMode === AddressingMode.indexed) 
     {
       let registerField = (operand & 0b01100000) >> 5; 
-      let operandFormat = "";
-
+      
       let indirect = (operand & 0b00010000) >> 4;
       let bit7 = (operand & 0b10000000) >> 7;
       if (bit7 === 1) 
@@ -423,7 +456,7 @@ export function disassemble(binaryBuffer, offset)
         {
           // Constant offset from PC
           let bytesToRead = 1;
-          if (indexedAddressingMode === 0b1101)
+          if (indexedAddressingMode === 0b1101) // 16 bits
             bytesToRead = 2;
 
           let r = readBigEndian(input, initialIndex + currentOpcodeLength + currentOperandLength, bytesToRead);
@@ -431,8 +464,18 @@ export function disassemble(binaryBuffer, offset)
           if (succeeded)
           {
             currentOperandLength += bytesToRead;
+
+            instruction.relativeAddress = convertToTwosComplement(operand, bytesToRead * 8);
+            instruction.relativeAddressLength = bytesToRead;
+
             // n,PCR
-            operandFormat = "$" + r.value.toString(16).padStart(bytesToRead * 2, '0').toUpperCase() + ",PCR";
+            instruction.comment = toHexa(instruction.relativeAddress, currentOperandLength) + ",PCR";
+
+            instruction.effectiveAddress = (virtualMemoryAddress + currentOpcodeLength + currentOperandLength + instruction.relativeAddress) % Math.pow(2, 16);
+            instruction.operandTemplate = effectiveAddressOrSymbol;
+
+            instruction.operandText = instruction.operandTemplate.replace(effectiveAddressOrSymbol, toHexa(instruction.effectiveAddress, currentOperandLength)); 
+            
           }
         }
         else
@@ -446,42 +489,42 @@ export function disassemble(binaryBuffer, offset)
           if (succeeded && indexedAddressingMode === 0b0100)
           {
             // ,R
-            operandFormat = "," + register;
+            instruction.operandText = "," + register;
           }
           else if (succeeded && indexedAddressingMode === 0b0110)
           {
             // A,R
-            operandFormat = "A," + register;
+            instruction.operandText = "A," + register;
           }
           else if (succeeded && indexedAddressingMode === 0b0101)
           {
             // B,R
-            operandFormat = "B," + register;
+            instruction.operandText = "B," + register;
           }
           else if (succeeded && indexedAddressingMode === 0b1011)
           {
             // D,R
-            operandFormat = "B," + register;
+            instruction.operandText = "B," + register;
           }
           else if (succeeded && indexedAddressingMode === 0b0000 && !indirect)
           {
             // ,R+
-            operandFormat = "," + register + "+";
+            instruction.operandText = "," + register + "+";
           }
           else if (succeeded && indexedAddressingMode === 0b0001)
           {
             // ,R++
-            operandFormat = "," + register + "++";
+            instruction.operandText = "," + register + "++";
           }
           else if (succeeded && indexedAddressingMode === 0b0010 && !indirect)
           {
             // ,-R
-            operandFormat = ",-" + register;
+            instruction.operandText = ",-" + register;
           }
           else if (succeeded && indexedAddressingMode === 0b0011)
           {
             // ,--R
-            operandFormat = ",--" + register;
+            instruction.operandText = ",--" + register;
           }
           else if (succeeded && (indexedAddressingMode === 0b1000 || indexedAddressingMode === 0b1001))
           {
@@ -495,7 +538,7 @@ export function disassemble(binaryBuffer, offset)
             {
               currentOperandLength += bytesToRead;
               // n,R
-              operandFormat = "$" + r.value.toString(16).padStart(bytesToRead * 2, '0').toUpperCase() + "," + register;
+              instruction.operandText = "$" + r.value.toString(16).padStart(bytesToRead * 2, '0').toUpperCase() + "," + register;
             }
           }
           else if (succeeded && indexedAddressingMode === 0b1111 && indirect)
@@ -508,7 +551,7 @@ export function disassemble(binaryBuffer, offset)
             {
               currentOperandLength += bytesToRead;
               // n,R
-              operandFormat = "$" + r.value.toString(16).padStart(bytesToRead * 2, '0').toUpperCase();
+              instruction.operandText = "$" + r.value.toString(16).padStart(bytesToRead * 2, '0').toUpperCase();
             }
 
           }
@@ -520,7 +563,7 @@ export function disassemble(binaryBuffer, offset)
 
         if (succeeded && indirect)
         {
-          operandFormat = "[" + operandFormat + "]";
+          instruction.operandText = "[" + instruction.operandText + "]";
         }
 
       }
@@ -538,7 +581,7 @@ export function disassemble(binaryBuffer, offset)
           {
             // 5 bit offset, direct
             let offset = operand & 0b00011111; 
-            operandFormat = "$" + offset.toString(16).padStart(2, '0').toUpperCase() + "," + register;
+            instruction.operandText = "$" + offset.toString(16).padStart(2, '0').toUpperCase() + "," + register;
           }
         }
         else if (succeeded) // indirect, uses extra byte for offset 
@@ -550,12 +593,12 @@ export function disassemble(binaryBuffer, offset)
           {
             currentOperandLength += bytesToRead;
             // [n,R]
-            operandFormat = "[$" + r.value.toString(16).padStart(2, '0').toUpperCase() + "," + register + "]";
+            instruction.operandText = "[$" + r.value.toString(16).padStart(2, '0').toUpperCase() + "," + register + "]";
           }
         } 
       }
 
-      instruction.format = instruction.mnemonic + " &emsp; " + operandFormat;
+      instruction.format = instruction.mnemonic + " &emsp; " + instruction.operandText;
       
     }
 
@@ -585,4 +628,46 @@ export function disassemble(binaryBuffer, offset)
 
 
   return instructions;
+}
+
+export function updateSymbols(instructions, symbols)
+{
+  instructions.forEach(function(instruction) 
+  {
+    let efectiveAddress = undefined;
+    if (instruction.addressingMode === AddressingMode.extended ||
+        instruction.addressingMode === AddressingMode.relative || 
+        instruction.addressingMode === AddressingMode.indexed) 
+    {
+      if (instruction.effectiveAddress !== undefined)
+      {
+        let symbol = symbols[instruction.effectiveAddress];
+        if (symbol !== undefined)
+        {
+          instruction.symbol = symbol;
+        }
+        else
+        {
+          // Create new symbol
+          let newSymbol = "L" + instruction.effectiveAddress.toString(16).padStart(4, '0').toUpperCase();
+          instruction.symbol = symbol;
+        }
+
+        instruction.operandTemplate.replace(effectiveAddressOrSymbol, instruction.symbol);
+
+      }
+    }
+  });
+
+
+  instructions.forEach(function(instruction) 
+  {
+
+    let symbol = symbols[instruction.virtualMemoryAddress];
+    if (symbol !== undefined)
+    {
+      instruction.label = symbol;
+    }
+  });
+
 }
